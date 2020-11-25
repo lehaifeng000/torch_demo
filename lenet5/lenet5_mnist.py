@@ -11,7 +11,7 @@ test_dataset = datasets.MNIST(root='./data',train=False,transform=transforms.ToT
 BATCH_SIZE=32
 EPOCHS=20
 DEVICE=torch.device("cuda" if torch.cuda.is_available() else "cpu")
-PRINT_FRE=50
+PRINT_FRE=100
 
 #加载小批次数据，即将MNIST数据集中的data分成每组batch_size的小块，shuffle指定是否随机读取
 train_loader = DataLoader(dataset=train_dataset,batch_size=BATCH_SIZE,shuffle=True)
@@ -42,10 +42,11 @@ class Lenet5(nn.Module):
         out=self.fc1(out)
         out=self.fc2(out)
         return out
-
+print("---net init---")
 net=Lenet5()
 net=net.to(DEVICE)
-classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
+classes = ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9')
+# classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(net.parameters(), lr=0.001)
@@ -63,20 +64,26 @@ def test():
 
     avg_loss /= len(test_dataset)
     print('Test Avg. Loss: %f, Accuracy: %f' % (avg_loss.detach().item(), float(total_correct) / len(test_dataset)))
-
+print("--- start  training ---")
 for epoch in range(EPOCHS):
     running_loss = 0.0
+    total_correct = 0
     for i, data in enumerate(train_loader, 0):
         inputs, labels = data[0].to(DEVICE), data[1].to(DEVICE)
         optimizer.zero_grad()
         outputs = net(inputs)
+        # counting accuracy
+        pred = outputs.detach().max(1)[1]
+        total_correct += pred.eq(labels.view_as(pred)).sum()
+
         loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
         
         running_loss += loss.item()
         if i % PRINT_FRE == PRINT_FRE-1:
-            print('[%d, %5d] loss: %.3f' %
-                  (epoch + 1, i + 1, running_loss / PRINT_FRE))
+            print('train: [epoch: %d,    batch: %5d]     loss: %.3f    accuracy: %.3f' %
+                  (epoch + 1, i + 1, running_loss / PRINT_FRE, float(total_correct)/ (PRINT_FRE * BATCH_SIZE)  ))
             running_loss = 0.0
+            total_correct=0
             test()
